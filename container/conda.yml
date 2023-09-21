@@ -1,0 +1,20 @@
+name: base 
+channels:
+  - conda-forge
+  - rapidsai
+dependencies:
+  - python=3.10
+  # - cucim
+  - scikit-image
+  - cupy
+  - cuda-version=11.8
+  - pip
+  - pip:
+      - openpyxl
+      - pdbpp
+      - fire==0.5.0
+      - scanpy==1.9.3
+      - scipy
+      - PyYAML==6.0.1
+      - shapely==2.0.1
+      - ome-zarr==0.8.0
