@@ -166,5 +166,6 @@ cython_debug/
 work/
 
 *.un~
+*.swp
 
 test_data/
