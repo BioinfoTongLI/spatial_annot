@@ -43,7 +43,6 @@ def construct_set(object_name:str, object_ids:str):
 def main(annot_json:str, anndata_zarr:str, out:str):
     with open(annot_json, 'r') as f:
         rois_with_ids = json.load(f)
-    print(rois_with_ids[100])
     children = {i: construct_set(k, rois_with_ids[k]) for i, k in enumerate(rois_with_ids)}
 
     config = VITESSCE_CONFIG_TEMPLATE.copy()
