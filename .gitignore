@@ -169,3 +169,4 @@ work/
 *.swp
 
 test_data/
+output*
