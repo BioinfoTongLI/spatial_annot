@@ -24,7 +24,8 @@ process ids_to_rois {
     cache true
 
     container 'bioinfotongli/spatial_annot:latest'
-    containerOptions "${workflow.containerEngine == 'singularity' ? '-B /lustre,/nfs --nv':'-v /lustre:/lustre -v /nfs:/nfs --gpus all'}"
+    /*containerOptions "${workflow.containerEngine == 'singularity' ? '-B /lustre,/nfs --nv':'-v /lustre:/lustre -v /nfs:/nfs --gpus all'}"*/
+    containerOptions "${workflow.containerEngine == 'singularity' ? '-B /lustre,/nfs':'-v /lustre:/lustre -v /nfs:/nfs'}"
     // publishDir params.out_dir, mode:"copy"
     storeDir params.out_dir
 
@@ -91,7 +92,6 @@ process vitessce_annot_to_anndata {
 
     script:
     out = meta['id']
-
     def args = task.ext.args ?: ''
     """
     add_vitessce_annot_to_anndata.py \
@@ -114,13 +114,13 @@ workflow {
     to_vitessce_json(ids_to_rois.out.join(anndata))
 }
 
-// params.zarrs = [
-//     [['id': 'KR_XEN-SAT_10625_R1'], '/nfs/team283_imaging/KR_XEN/playground_Tong/20230913_mouse_brain_QC/webatlas_annotations/My Selections_vitessce-obs-hierarchy KR_XEN-SAT_10625_R1.json', '/nfs/team283_imaging/KR_XEN/playground_Tong/20230913_mouse_brain_QC/0.3.2/KR_XEN-SAT_10625_R1-anndata.zarr'],
-//     [['id': 'KR_XEN-SAT_10625_R2'], '/nfs/team283_imaging/KR_XEN/playground_Tong/20230913_mouse_brain_QC/webatlas_annotations/My Selections_vitessce-obs-hierarchy KR_XEN-SAT_10625_R2.json', '/nfs/team283_imaging/KR_XEN/playground_Tong/20230913_mouse_brain_QC/0.3.2/KR_XEN-SAT_10625_R2-anndata.zarr'],
-//     [['id': 'KR_XEN-SAT_10686_R1'], '/nfs/team283_imaging/KR_XEN/playground_Tong/20230913_mouse_brain_QC/webatlas_annotations/My Selections_vitessce-obs-hierarchy KR_XEN-SAT_10686_R1.json', '/nfs/team283_imaging/KR_XEN/playground_Tong/20230913_mouse_brain_QC/0.3.2/KR_XEN-SAT_10686_R1-anndata.zarr'],
-//     [['id': 'KR_XEN-SAT_10686_R2'], '/nfs/team283_imaging/KR_XEN/playground_Tong/20230913_mouse_brain_QC/webatlas_annotations/My Selections_vitessce-obs-hierarchy KR_XEN-SAT_10686_R2.json', '/nfs/team283_imaging/KR_XEN/playground_Tong/20230913_mouse_brain_QC/0.3.2/KR_XEN-SAT_10686_R2-anndata.zarr'],
-// ]
+params.vitessce_annot_transfer_input = [
+    [['id': 'KR_XEN_XETG00155__0004120__Region_1__20231011__125831'], '/nfs/team283_imaging/KR_XEN/playground_Tong/20231025_mouse_brain_QC/My Selections_vitessce-obs-hierarchy KR_XEN_XETG00155__0004120__Region_1__20231011__125831.json', 'xenium/public/KR_XEN/KR_XEN-output-XETG00155__0004120__Region_1__20231011__125831-anndata.zarr'],
+    [['id': 'KR_XEN_XETG00155__0004120__Region_2__20231011__125831'], '/nfs/team283_imaging/KR_XEN/playground_Tong/20231025_mouse_brain_QC/My Selections_vitessce-obs-hierarchy KR_XEN_XETG00155__0004120__Region_2__20231011__125831.json', 'xenium/public/KR_XEN/KR_XEN-output-XETG00155__0004120__Region_2__20231011__125831-anndata.zarr'],
+    [['id': 'KR_XEN_XETG00155__0004142__Region_1__20231011__125831'], '/nfs/team283_imaging/KR_XEN/playground_Tong/20231025_mouse_brain_QC/My Selections_vitessce-obs-hierarchy KR_XEN_XETG00155__0004142__Region_1__20231011__125831.json', 'xenium/public/KR_XEN/KR_XEN-output-XETG00155__0004142__Region_1__20231011__125831-anndata.zarr'],
+    [['id': 'KR_XEN_XETG00155__0004142__Region_2__20231011__125831'], '/nfs/team283_imaging/KR_XEN/playground_Tong/20231025_mouse_brain_QC/My Selections_vitessce-obs-hierarchy KR_XEN_XETG00155__0004142__Region_2__20231011__125831.json', 'xenium/public/KR_XEN/KR_XEN-output-XETG00155__0004142__Region_2__20231011__125831-anndata.zarr'],
+]
 
 workflow add_vitessce_annotations_to_anndata {
-    vitessce_annot_to_anndata(channel.from(params.zarrs))
+    vitessce_annot_to_anndata(channel.from(params.vitessce_annot_transfer_input))
 }
