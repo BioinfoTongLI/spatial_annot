@@ -40,7 +40,7 @@ def read_and_qc(sample_name:str,
     """
     adata = sc.read_visium(str(sample_name),
                            count_file=count_file)
-    
+
     fiducial_file = glob(f"{sample_name}/*_fiducial.json")[0]
     with open(fiducial_file) as f:
         # Load the JSON data
@@ -58,28 +58,14 @@ def read_and_qc(sample_name:str,
     adata.X = csr_matrix(adata.X)
     adata.var['mt'] = [gene.startswith('mt-') for gene in adata.var['SYMBOL']]
     adata.obs['mt_frac'] = adata[:, adata.var['mt'].tolist()].X.sum(1).A.squeeze()/adata.obs['total_counts']
-    
+
     # add sample name to obs names
     adata.obs["sample"] = [str(i) for i in adata.obs['sample']]
     adata.obs_names = adata.obs["sample"] \
                           + '_' + adata.obs_names
     adata.obs.index.name = 'spot_id'
     adata.uns["cytassist_align"] = align_data
-    return adata 
-
-
-# def main(omero_annot_yaml:str, spaceranger_folder:str):
-    # adata = read_and_qc(spaceranger_folder)
-    # print(adata.uns['spatial'][list(adata.uns['spatial'])[0]].keys())
-    # print(adata.uns['spatial'][list(adata.uns['spatial'])[0]]['scalefactors'])
-    # print(adata.uns["cytassist_align"]['transform'])
-    # regions = {}
-    # for y in glob(f"{omero_annot_yaml}/*.yaml"):
-    #     with open(y, 'r') as f:
-    #         data = yaml.safe_load(f)
-    #     regions[data['roi_name']] = wkt.loads(data['poly'])
-    # print(regions)
-    # adata.write_h5ad(f"{spaceranger_folder}.h5ad")
+    return adata
 
 
 def load_annotations_from_yaml(roi_folder: str) -> Dict[str, Polygon]:
@@ -90,10 +76,19 @@ def load_annotations_from_yaml(roi_folder: str) -> Dict[str, Polygon]:
     :return: A dictionary with the regions loaded from the YAML files.
     """
     regions = {}
+    region_counter = {}
     for y in glob(f"{roi_folder}/*.yaml"):
         with open(y, 'r') as f:
             data = yaml.safe_load(f)
-        regions[data['roi_name']] = Polygon(wkt.loads(data['poly']))
+        ori_roi_name = data['roi_name']
+        # Check if the region name already exists
+        if ori_roi_name not in region_counter.keys():
+            name = ori_roi_name
+            region_counter[ori_roi_name] = 1
+        else: # If it does, add a counter to the name
+            region_counter[ori_roi_name] += 1
+            name = ori_roi_name + '_' + str(region_counter[ori_roi_name])
+        regions[name] = Polygon(wkt.loads(data['poly']))
     return regions
 
 
@@ -114,28 +109,45 @@ def read_label_zarr(label_zarr_url: str) -> da.array:
     return lab_img
 
 
-# Assign manual annotations to Visium spots
-def main(label_zarr:str, roi_folder:str, out:str):
+def main(label_zarr:str, roi_folder:str, out:str, transpose:bool=False):
+    """
+    Assign manual annotations to Visium spots based on the provided label zarr and ROI folder.
+
+    :param label_zarr: Path to the label zarr file.
+    :type label_zarr: str
+    :param roi_folder: Path to the folder containing ROI annotations in YAML format.
+    :type roi_folder: str
+    :param out: Path to the output file where the Visium spots in ROIs will be saved in JSON format.
+    :type out: str
+    :param transpose: Whether to transpose the label zarr before processing. Default is False.
+    :type transpose: bool
+
+    :return: None
+    :rtype: None
+    """
+    # Assign manual annotations to Visium spots
     rois = load_annotations_from_yaml(roi_folder)
-    print(rois)
 
     # read in the label zarr using ome-zarr
     lab_img = read_label_zarr(f"{label_zarr}/0").squeeze()
-    print(lab_img.shape)
+    if transpose:
+        lab_img = xp.array(lab_img.T)
+    else:
+        lab_img = xp.array(lab_img)
 
     visium_spots_in_rois = {}
     for r in rois:
         # Get the coordiantes of pixels inside the polygon
         rr, cc = polygon(rois[r].exterior.coords.xy[1], rois[r].exterior.coords.xy[0], shape=lab_img.shape)
         try:
-            visium_spots_in_rois[r] = [int(i) for i in xp.unique(xp.array(lab_img)[rr, cc]).get()]
+            coords = [int(i) for i in xp.unique(lab_img[rr, cc]).get()]
         except:
-            visium_spots_in_rois[r] = [int(i) for i in xp.unique(xp.array(lab_img)[rr, cc])]
-    print(visium_spots_in_rois)
+            coords = [int(i) for i in xp.unique(lab_img[rr, cc])]
+        visium_spots_in_rois[r] = coords
 
     with open(out, 'w') as f:
         json.dump(visium_spots_in_rois, f)
 
-    
+
 if __name__ == "__main__":
     fire.Fire(main)
