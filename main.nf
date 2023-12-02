@@ -1,21 +1,6 @@
 #!/usr/bin/env/ nextflow
 
 nextflow.enable.dsl=2
-
-params.zarrs = [
-    // [['id': 'NJ_EMB-section_070_SOB26-WEM-FFPE-1'], '/home/ubuntu/Documents/spatial_annot/test_data/NJ_EMB-section_070_SOB26-WEM-FFPE-1-label.zarr', '/home/ubuntu/Documents/spatial_annot/test_data/44619_download', '/home/ubuntu/Documents/spatial_annot/test_data/NJ_EMB-section_070_SOB26-WEM-FFPE-1-anndata.zarr'],
-    // [['id': 'test'], 's3://bayraktar/NJ_EMB/Visium/0.3.2/NJ_EMB-section_070_SOB26-WEM-FFPE-1-anndata.zarr', 's3://bayraktar/NJ_EMB/Visium/0.3.2/NJ_EMB-section_070_SOB26-WEM-FFPE-1-label.zarr'],
-
-    /*[['id': 'Slide3_HandE_A1'], '/lustre/scratch126/cellgen/team283/tl10/nf_runs/webatlas/JL_CVLNG/output/0.3.2/JL_CVLNG-Slide3_HandE_A1-label.zarr', '/lustre/scratch126/cellgen/team283/tl10/omero_roi_image_download/GBM/52440_download', '/lustre/scratch126/cellgen/team283/tl10/nf_runs/webatlas/JL_CVLNG/output/0.3.2/JL_CVLNG-Slide3_HandE_A1-anndata.zarr'],*/
-    /*[['id': 'Slide3_HandE_B1'], '/lustre/scratch126/cellgen/team283/tl10/nf_runs/webatlas/JL_CVLNG/output/0.3.2/JL_CVLNG-Slide3_HandE_B1-label.zarr', '/lustre/scratch126/cellgen/team283/tl10/omero_roi_image_download/GBM/52441_download', '/lustre/scratch126/cellgen/team283/tl10/nf_runs/webatlas/JL_CVLNG/output/0.3.2/JL_CVLNG-Slide3_HandE_B1-anndata.zarr'],*/
-    /*[['id': 'Slide3_HandE_C1'], '/lustre/scratch126/cellgen/team283/tl10/nf_runs/webatlas/JL_CVLNG/output/0.3.2/JL_CVLNG-Slide3_HandE_C1-label.zarr', '/lustre/scratch126/cellgen/team283/tl10/omero_roi_image_download/GBM/52442_download', '/lustre/scratch126/cellgen/team283/tl10/nf_runs/webatlas/JL_CVLNG/output/0.3.2/JL_CVLNG-Slide3_HandE_C1-anndata.zarr'],*/
-    /*[['id': 'Slide3_HandE_D1'], '/lustre/scratch126/cellgen/team283/tl10/nf_runs/webatlas/JL_CVLNG/output/0.3.2/JL_CVLNG-Slide3_HandE_D1-label.zarr', '/lustre/scratch126/cellgen/team283/tl10/omero_roi_image_download/GBM/52443_download', '/lustre/scratch126/cellgen/team283/tl10/nf_runs/webatlas/JL_CVLNG/output/0.3.2/JL_CVLNG-Slide3_HandE_D1-anndata.zarr'],*/
-
-    [['id': 'Slide4_HandE_A1'], '/lustre/scratch126/cellgen/team283/tl10/nf_runs/webatlas/JL_CVLNG/output/0.3.2/JL_CVLNG-Slide3_HandE_A1-label.zarr', '/lustre/scratch126/cellgen/team283/tl10/omero_roi_image_download/GBM/52444_download', '/lustre/scratch126/cellgen/team283/tl10/nf_runs/webatlas/JL_CVLNG/output/0.3.2/JL_CVLNG-Slide4_HandE_A1-anndata.zarr'],
-    [['id': 'Slide4_HandE_B1'], '/lustre/scratch126/cellgen/team283/tl10/nf_runs/webatlas/JL_CVLNG/output/0.3.2/JL_CVLNG-Slide3_HandE_B1-label.zarr', '/lustre/scratch126/cellgen/team283/tl10/omero_roi_image_download/GBM/52445_download', '/lustre/scratch126/cellgen/team283/tl10/nf_runs/webatlas/JL_CVLNG/output/0.3.2/JL_CVLNG-Slide4_HandE_B1-anndata.zarr'],
-    [['id': 'Slide4_HandE_C1'], '/lustre/scratch126/cellgen/team283/tl10/nf_runs/webatlas/JL_CVLNG/output/0.3.2/JL_CVLNG-Slide3_HandE_C1-label.zarr', '/lustre/scratch126/cellgen/team283/tl10/omero_roi_image_download/GBM/52446_download', '/lustre/scratch126/cellgen/team283/tl10/nf_runs/webatlas/JL_CVLNG/output/0.3.2/JL_CVLNG-Slide4_HandE_C1-anndata.zarr'],
-    [['id': 'Slide4_HandE_D1'], '/lustre/scratch126/cellgen/team283/tl10/nf_runs/webatlas/JL_CVLNG/output/0.3.2/JL_CVLNG-Slide3_HandE_D1-label.zarr', '/lustre/scratch126/cellgen/team283/tl10/omero_roi_image_download/GBM/52447_download', '/lustre/scratch126/cellgen/team283/tl10/nf_runs/webatlas/JL_CVLNG/output/0.3.2/JL_CVLNG-Slide4_HandE_D1-anndata.zarr'],
-]
 params.out_dir = '.output'
 
 
@@ -104,14 +89,17 @@ process vitessce_annot_to_anndata {
 
 
 workflow {
-    label_annot = channel.from(params.zarrs).map { meta, label_zarr, roi_folder, anndata_zarr ->
-        tuple(meta, label_zarr, roi_folder)
-    }
-    anndata = channel.from(params.zarrs).map { meta, label_zarr, roi_folder, anndata_zarr ->
-        tuple(meta, anndata_zarr)
-    }
-    ids_to_rois(label_annot)
-    to_vitessce_json(ids_to_rois.out.join(anndata))
+    zarrs = channel.fromPath("/nfs/team283_imaging/LP_GBM/playground_Tong/webatlas_convert/spaceranger_ID_map - visium_sample_map.csv")
+        .splitCsv(header: true, sep: ',')
+        .multiMap { row ->
+            label_annot: [['id': row['SANGER_ID']],
+                file("/nfs/team283_imaging/LP_GBM/playground_Tong/webatlas_convert/zarrs/0.3.2/LP_GBM-" + row['SANGER_ID']+ "-label.zarr", checkIfExists:true),
+                file("/nfs/team283_imaging/LP_GBM/playground_Tong/ROIs/" + row['omero_id'] + "_download", checkIfExists:true)]
+            anndata: [['id': row['SANGER_ID']], 
+                file("/nfs/team283_imaging/LP_GBM/playground_Tong/webatlas_convert/zarrs/0.3.2/LP_GBM-" + row['SANGER_ID']+ "-anndata.zarr", checkIfExists:true)]
+        }
+    ids_to_rois(zarrs.label_annot)
+    to_vitessce_json(ids_to_rois.out.join(zarrs.anndata))
 }
 
 params.vitessce_annot_transfer_input = [
