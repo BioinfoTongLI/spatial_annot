@@ -85,6 +85,8 @@ def load_annotations_from_yaml(roi_folder: str) -> Dict[str, Polygon]:
         if ori_roi_name not in region_counter.keys():
             name = ori_roi_name
             region_counter[ori_roi_name] = 1
+        elif ori_roi_name == "N/A" or ori_roi_name == "n/a":
+            name = ori_roi_name 
         else: # If it does, add a counter to the name
             region_counter[ori_roi_name] += 1
             name = ori_roi_name + '_' + str(region_counter[ori_roi_name])
