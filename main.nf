@@ -89,14 +89,18 @@ process vitessce_annot_to_anndata {
 
 
 workflow {
-    zarrs = channel.fromPath("/nfs/team283_imaging/LP_GBM/playground_Tong/webatlas_convert/spaceranger_ID_map - visium_sample_map.csv")
+    /*zarrs = channel.fromPath("/nfs/team283_imaging/LP_GBM/playground_Tong/webatlas_convert/spaceranger_ID_map - visium_sample_map.csv")*/
+    root = "/nfs/team283_imaging/NJ_EMB/playground_Tong/label_transfer_20240116/"
+    zarr_folder = "/nfs/team283_imaging/NJ_EMB/playground_Tong/webatlas_convert/zarrs/0.3.2/"
+    project_code = "NJ_EMB"
+    zarrs = channel.fromPath(root + "Whole Embryo Project Omero Upload CS17 - CS17 SOB26 clean _MASTERSHEET_20240117.csv")
         .splitCsv(header: true, sep: ',')
         .multiMap { row ->
             label_annot: [['id': row['SANGER_ID']],
-                file("/nfs/team283_imaging/LP_GBM/playground_Tong/webatlas_convert/zarrs/0.3.2/LP_GBM-" + row['SANGER_ID']+ "-label.zarr", checkIfExists:true),
-                file("/nfs/team283_imaging/LP_GBM/playground_Tong/ROIs/" + row['omero_id'] + "_download", checkIfExists:true)]
-            anndata: [['id': row['SANGER_ID']], 
-                file("/nfs/team283_imaging/LP_GBM/playground_Tong/webatlas_convert/zarrs/0.3.2/LP_GBM-" + row['SANGER_ID']+ "-anndata.zarr", checkIfExists:true)]
+                file(zarr_folder + project_code + "-" + row['SANGER_ID']+ "-label.zarr", checkIfExists:true),
+                file(root + "ROIs/" + row['omero_id'] + "_download", checkIfExists:true)]
+            anndata: [['id': row['SANGER_ID']],
+                file(zarr_folder + project_code + "-" + row['SANGER_ID']+ "-anndata.zarr", checkIfExists:true)]
         }
     ids_to_rois(zarrs.label_annot)
     to_vitessce_json(ids_to_rois.out.join(zarrs.anndata))
