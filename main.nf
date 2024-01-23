@@ -21,7 +21,7 @@ process ids_to_rois {
     tuple val(meta), path(out)
 
     script:
-    out = "${meta['id']}.json"
+    out = "${meta['id']}.csv"
     def args = task.ext.args ?: ''
     """
     add_omero_annot.py \
@@ -33,7 +33,7 @@ process ids_to_rois {
 }
 
 
-process to_vitessce_json {
+process add_h5ad_annot {
     debug true
     cache true
 
@@ -42,10 +42,11 @@ process to_vitessce_json {
     publishDir params.out_dir, mode:"copy"
 
     input:
-    tuple val(meta), path(annot_json), path(anndata_zarr)
+    tuple val(meta), path(annot_csv), path(anndata_zarr)
 
     output:
-    tuple val(meta), path("${out}_vitessce.json"), path("${out}_anndata_with_annotations.h5ad")
+    tuple val(meta), path("${out}_anndata_with_annotations.h5ad")
+    tuple val(meta), path("${out}_vitessce.json"), optional:true
 
     script:
     out = meta['id']
@@ -53,7 +54,7 @@ process to_vitessce_json {
     def args = task.ext.args ?: ''
     """
     to_Vitessce_annot.py \
-        -annot_json ${annot_json} \
+        -annot_csv ${annot_csv} \
         -anndata_zarr ${anndata_zarr} \
         -out ${out} \
         ${args}
@@ -93,6 +94,7 @@ workflow {
     root = "/nfs/team283_imaging/NJ_EMB/playground_Tong/label_transfer_20240116/"
     zarr_folder = "/nfs/team283_imaging/NJ_EMB/playground_Tong/webatlas_convert/zarrs/0.3.2/"
     project_code = "NJ_EMB"
+    // zarrs = channel.fromPath(root + "test.csv")
     zarrs = channel.fromPath(root + "Whole Embryo Project Omero Upload CS17 - CS17 SOB26 clean _MASTERSHEET_20240117.csv")
         .splitCsv(header: true, sep: ',')
         .multiMap { row ->
@@ -103,7 +105,7 @@ workflow {
                 file(zarr_folder + project_code + "-" + row['SANGER_ID']+ "-anndata.zarr", checkIfExists:true)]
         }
     ids_to_rois(zarrs.label_annot)
-    to_vitessce_json(ids_to_rois.out.join(zarrs.anndata))
+    add_h5ad_annot(ids_to_rois.out.join(zarrs.anndata))
 }
 
 params.vitessce_annot_transfer_input = [
