@@ -24,6 +24,7 @@ try:
 except ImportError:
     import numpy as xp
     print("Using numpy")
+import pandas as pd
 
 # import scanpy as sc
 # from scipy.sparse import csr_matrix
@@ -136,19 +137,23 @@ def main(label_zarr:str, roi_folder:str, out:str, transpose:bool=False):
         lab_img = xp.array(lab_img.T)
     else:
         lab_img = xp.array(lab_img)
-
     visium_spots_in_rois = {}
     for r in rois:
         # Get the coordiantes of pixels inside the polygon
         rr, cc = polygon(rois[r].exterior.coords.xy[1], rois[r].exterior.coords.xy[0], shape=lab_img.shape)
         try:
-            coords = [int(i) for i in xp.unique(lab_img[rr, cc]).get()]
+            visium_spot_composition = xp.unique(lab_img[rr, cc], return_counts=True)
         except:
-            coords = [int(i) for i in xp.unique(lab_img[rr, cc])]
-        visium_spots_in_rois[r] = coords
-
-    with open(out, 'w') as f:
-        json.dump(visium_spots_in_rois, f)
+            visium_spot_composition = xp.unique(lab_img[rr, cc], return_counts=True)
+        regions_with_couns = {} 
+        for i, c in enumerate(visium_spot_composition[0]):
+            regions_with_couns[int(c)] = int(visium_spot_composition[1][i])
+        visium_spots_in_rois[r] = regions_with_couns
+    annot_count_df = pd.DataFrame.from_dict(visium_spots_in_rois)
+    annot_count_df.fillna(0, inplace=True)
+    # remove the background label
+    annot_count_df.drop(0, axis=0, inplace=True)
+    annot_count_df.to_csv(out)
 
 
 if __name__ == "__main__":

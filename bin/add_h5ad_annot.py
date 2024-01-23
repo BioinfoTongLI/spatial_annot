@@ -8,6 +8,7 @@ import fire
 from typing import Dict
 import json
 import anndata as ad
+import pandas as pd
 
 
 VITESSCE_CONFIG_TEMPLATE = {
@@ -40,33 +41,31 @@ def construct_set(object_name:str, object_ids:str):
     }
 
 
-def main(annot_json:str, anndata_zarr:str, out:str):
-    with open(annot_json, 'r') as f:
-        rois_with_ids = json.load(f)
-    children = {i: construct_set(k, rois_with_ids[k]) for i, k in enumerate(rois_with_ids)}
+def main(annot_csv:str, anndata_zarr:str, out:str):
+    annot_count_df = pd.read_csv(annot_csv, index_col=0).astype(int)
+    annot_count_df.index = annot_count_df.index.astype(str)
 
-    config = VITESSCE_CONFIG_TEMPLATE.copy()
-    config['tree'][0]['children'] = children
-    # print(config['tree'][0]['children'])
-    with open(f"{out}_vitessce.json", 'w') as f:
-        json.dump(config, f)
-
+    annot_cols = annot_count_df.columns
     adata = ad.read_zarr(anndata_zarr)
-    adata.obs["Annotation"] = "NA"
+    merged_df = adata.obs.merge(
+        annot_count_df, left_index=True, right_index=True, how='outer'
+    )
+    for col in annot_cols:
+        merged_df[col].fillna(0, inplace=True)
 
-    reversed_dict = {}
-    for key, values in rois_with_ids.items():
-        for value in values:
-            if value not in reversed_dict:
-                reversed_dict[value] = key
-            else:
-                reversed_dict[value] += f" - {key}"
-    del reversed_dict[0] # remove background label
-
-    for t in reversed_dict:
-        adata.obs["Annotation"].loc[str(t)] = reversed_dict[t]
+    print(merged_df)
     zarr_out = f"{out}_anndata_with_annotations.h5ad"
+    adata.obs = merged_df  # Update adata.obs to merged_df
+
     adata.write_h5ad(zarr_out)
+
+    # children = {i: construct_set(k, rois_with_ids[k]) for i, k in enumerate(rois_with_ids)}
+
+    # config = VITESSCE_CONFIG_TEMPLATE.copy()
+    # config['tree'][0]['children'] = children
+    # # print(config['tree'][0]['children'])
+    # with open(f"{out}_vitessce.json", 'w') as f:
+    #     json.dump(config, f)
 
 
 if __name__ == '__main__':
