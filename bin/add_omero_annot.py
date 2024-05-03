@@ -77,21 +77,15 @@ def load_annotations_from_yaml(roi_folder: str) -> Dict[str, Polygon]:
     :return: A dictionary with the regions loaded from the YAML files.
     """
     regions = {}
-    region_counter = {}
     for y in glob(f"{roi_folder}/*.yaml"):
         with open(y, 'r') as f:
             data = yaml.safe_load(f)
-        ori_roi_name = data['roi_name']
+        poly = Polygon(wkt.loads(data['poly']))
         # Check if the region name already exists
-        if ori_roi_name not in region_counter.keys():
-            name = ori_roi_name
-            region_counter[ori_roi_name] = 1
-        elif ori_roi_name == "N/A" or ori_roi_name == "n/a":
-            name = ori_roi_name 
-        else: # If it does, add a counter to the name
-            region_counter[ori_roi_name] += 1
-            name = ori_roi_name + '_' + str(region_counter[ori_roi_name])
-        regions[name] = Polygon(wkt.loads(data['poly']))
+        if data['roi_name'] not in regions.keys():
+            regions[data['roi_name']] = [poly]
+        else:
+            regions[data['roi_name']].append(poly)
     return regions
 
 
@@ -129,7 +123,7 @@ def main(label_zarr:str, roi_folder:str, out:str, transpose:bool=False):
     :rtype: None
     """
     # Assign manual annotations to Visium spots
-    rois = load_annotations_from_yaml(roi_folder)
+    roi_name_poly_dict = load_annotations_from_yaml(roi_folder)
 
     # read in the label zarr using ome-zarr
     lab_img = read_label_zarr(f"{label_zarr}/0").squeeze()
@@ -138,17 +132,25 @@ def main(label_zarr:str, roi_folder:str, out:str, transpose:bool=False):
     else:
         lab_img = xp.array(lab_img)
     visium_spots_in_rois = {}
-    for r in rois:
-        # Get the coordiantes of pixels inside the polygon
-        rr, cc = polygon(rois[r].exterior.coords.xy[1], rois[r].exterior.coords.xy[0], shape=lab_img.shape)
-        try:
-            visium_spot_composition = xp.unique(lab_img[rr, cc], return_counts=True)
-        except:
-            visium_spot_composition = xp.unique(lab_img[rr, cc], return_counts=True)
-        regions_with_couns = {} 
-        for i, c in enumerate(visium_spot_composition[0]):
-            regions_with_couns[int(c)] = int(visium_spot_composition[1][i])
-        visium_spots_in_rois[r] = regions_with_couns
+    for r in roi_name_poly_dict:
+        counts_of_genre = {}
+        for p in roi_name_poly_dict[r]:
+            # Get the coordiantes of pixels inside the polygon
+            rr, cc = polygon(
+                p.exterior.coords.xy[1], 
+                p.exterior.coords.xy[0],
+                shape=lab_img.shape
+            )
+            try:
+                visium_spot_composition = xp.unique(lab_img[rr, cc], return_counts=True).get()
+            except:
+                visium_spot_composition = xp.unique(lab_img[rr, cc], return_counts=True)
+            for i, c in enumerate(visium_spot_composition[0]):
+                if int(c) not in counts_of_genre:
+                    counts_of_genre[int(c)] = int(visium_spot_composition[1][i])
+                else:
+                    counts_of_genre[int(c)] += int(visium_spot_composition[1][i])
+        visium_spots_in_rois[r] = counts_of_genre
     annot_count_df = pd.DataFrame.from_dict(visium_spots_in_rois)
     annot_count_df.fillna(0, inplace=True)
     # remove the background label

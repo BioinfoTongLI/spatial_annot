@@ -53,7 +53,7 @@ process add_h5ad_annot {
 
     def args = task.ext.args ?: ''
     """
-    to_Vitessce_annot.py \
+    add_h5ad_annot.py \
         -annot_csv ${annot_csv} \
         -anndata_zarr ${anndata_zarr} \
         -out ${out} \
